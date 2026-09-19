@@ -12,6 +12,7 @@ OneKlickPony 0.5.0 verbindet einen ESP32-C3 dauerhaft mit einem ausdrücklich an
 - `diagnose-c3`: eigenständige Diagnosefirmware mit seriellen BLE-, GATT-, HID- und Bond-Werkzeugen; ihr Firmware-Banner steht weiterhin auf 0.1.0.
 - `native`: Unity-Tests für Ausgangs-, Polaritäts-, Report-, Lern-, Modus- und Parameterlogik.
 - `Tools\product` und `Tools\diagnose`: getrennte Batchdateien zum Kompilieren, Flashen und Überwachen; COM9 wird zentral in `Tools\env.bat` konfiguriert.
+- `web`: statische, deutsch- und englischsprachige Vite-Anwendung für GitHub Pages. Sie prüft HTTPS/Web Serial, flasht ausschließlich die freigegebene ESP32-C3-Produktivfirmware nach SHA-256-Prüfung, konfiguriert die bestehende serielle Schnittstelle und zeigt Beispielanleitungen sowie zustimmungspflichtige YouTube-Einbettungen. `Tools\web\FirmwareReleaseVorbereiten.ps1` validiert den manuell freigegebenen Firmwarekatalog ohne einen Build auszuführen.
 
 ## Hardware
 
@@ -26,3 +27,5 @@ ESP32-C3 (`esp32-c3-devkitm-1`), SSD1306 72 × 40 an SDA GPIO5/SCL GPIO6, BOOT a
 - Noch NICHT mit 0.5.0 hardwareseitig getestet sind die erfolgreiche Wiederverbindung nach Koppeln und Neustart, die neue Endpunkt-Diagnose, die invertierte OLED-Anzeige und das große `ON`, die Fehleranzeige `ERROR:####`, sichtbare OLED-Ausgabe, GPIO-Pegel beziehungsweise Board-LED, der Boot-Flash-Screen mit aktuellem Modus, die serial-basierte Modusumschaltung samt Haltezeit-Persistenz, BOOT-Gesten und RPA-Verhalten.
 
 Details stehen in `README.md`; die schrittweise Anleitung für Laien steht in `ANWENDERDOKUMENTATION.md`.
+
+Die Webanwendung wurde per Typprüfung, Produktions-Build und neun automatisierten Webtests geprüft. Eine reale Browser-/Hardwareabnahme (ESP32-C3, Flashen und erneute serielle Versionsprüfung) steht weiterhin aus.

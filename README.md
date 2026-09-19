@@ -172,3 +172,23 @@ Klare Abgrenzung des aktuellen Prüfstands:
 - **Hardwareseitig noch NICHT mit 0.5.0 getestet:** erfolgreiche Wiederverbindung nach Koppeln und Neustart, neue Endpunkt-Diagnose, invertierte OLED-Anzeige und großes `ON`, Fehleranzeige `ERROR:####`, GPIO-Pegel beziehungsweise Board-LED, Boot-Flash-Screen mit dem aktiven Modus, serial-basierte Modusumschaltung und Haltezeit-Persistenz, BOOT-Gesten und RPA-Auflösung.
 
 Eine schrittweise Bedienanleitung für Anwender steht in [`ANWENDERDOKUMENTATION.md`](ANWENDERDOKUMENTATION.md).
+
+## Webanwendung
+
+Die zweisprachige Vite-Webanwendung liegt in [`web/`](web/). Sie läuft ausschließlich im Browser, benötigt kein Konto und überträgt keine Gerätedaten an einen Server. Sie enthält die Seiten Start, Flashen, Konfigurieren, Anleitungen und YouTube. Deutsch ist die Standardsprache; Englisch kann im Menü ausgewählt werden.
+
+Die Flash-Funktion bietet ausschließlich die freigegebene Produktivfirmware 0.5.0 an. Der veröffentlichte Dateisatz beschreibt nur `0x0000`, `0x8000`, `0xE000` und `0x10000`; die NVS-Partition ab `0x9000` bleibt bei normalen Updates unangetastet. Der Browser muss HTTPS und Web Serial unterstützen. Nach einem Flashvorgang wird die Firmwareversion über eine erneute serielle Verbindung abgefragt.
+
+```powershell
+Set-Location "C:\dev\OneKlickPony\web"
+npm ci
+npm run check
+```
+
+Die Firmwarefreigabe wird bewusst lokal vorbereitet und nie im GitHub-Pages-Workflow kompiliert:
+
+```powershell
+.\Tools\web\FirmwareReleaseVorbereiten.ps1 -ReleaseVersion 0.5.0
+```
+
+Details zu Offsets, Prüfsummen und der noch erforderlichen Hardwareabnahme stehen in [`web/FIRMWARE-FREIGABE.md`](web/FIRMWARE-FREIGABE.md).

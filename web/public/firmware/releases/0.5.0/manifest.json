@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "product": "OneKlickPony",
+  "productName": "OneKlickPony Produktivfirmware",
+  "version": "0.5.0",
+  "releasedAt": "19.09.2026",
+  "targetChip": "ESP32-C3",
+  "status": "stable",
+  "gitCommit": "491eaecf305fb790c28936fb0b3f5411e4c050f2",
+  "flashBaudRate": 115200,
+  "preservedRegions": [
+    {
+      "name": "NVS (Zuordnung, Bonds und Moduseinstellungen)",
+      "offset": "0x9000",
+      "size": "0x5000"
+    }
+  ],
+  "files": [
+    {
+      "path": "bootloader.bin",
+      "offset": "0x0000",
+      "size": 19520,
+      "sha256": "47f8c05bd1a66e6dc4b196c618b4fd37a4de652f3096c27a1bb86adb5c6d969b"
+    },
+    {
+      "path": "partitions.bin",
+      "offset": "0x8000",
+      "size": 3072,
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+    },
+    {
+      "path": "boot_app0.bin",
+      "offset": "0xe000",
+      "size": 8192,
+      "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+    },
+    {
+      "path": "firmware.bin",
+      "offset": "0x10000",
+      "size": 677632,
+      "sha256": "dc1ae420fcd9c6a0af678457968cd9e7ac1cbd9d1c7b40dcb7ce91a7e7df4533"
+    }
+  ]
+}

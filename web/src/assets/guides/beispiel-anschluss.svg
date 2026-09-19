@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-labelledby="title description">
+  <title id="title">Schematic example connection</title>
+  <desc id="description">An abstract OneKlickPony device connected to an abstract external device.</desc>
+  <rect width="760" height="360" rx="24" fill="#171124"/>
+  <path d="M291 180H468" stroke="#d5aa55" stroke-width="8" stroke-linecap="round" stroke-dasharray="14 14"/>
+  <circle cx="380" cy="180" r="14" fill="#eee6f5"/>
+  <rect x="74" y="86" width="220" height="188" rx="20" fill="#2a1d3e" stroke="#d5aa55" stroke-width="4"/>
+  <rect x="103" y="118" width="161" height="58" rx="10" fill="#eee6f5" opacity=".94"/>
+  <circle cx="184" cy="225" r="25" fill="#d5aa55"/>
+  <rect x="466" y="105" width="218" height="150" rx="20" fill="#2a1d3e" stroke="#eee6f5" stroke-width="4"/>
+  <path d="M526 180h98M575 131v98" stroke="#d5aa55" stroke-width="12" stroke-linecap="round"/>
+</svg>

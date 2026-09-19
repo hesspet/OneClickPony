@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-labelledby="title description">
+  <title id="title">Schematic example installation</title>
+  <desc id="description">An abstract prop containing an abstract OneKlickPony device.</desc>
+  <rect width="760" height="360" rx="24" fill="#171124"/>
+  <path d="M130 78h500c22 0 40 18 40 40v124c0 22-18 40-40 40H130c-22 0-40-18-40-40V118c0-22 18-40 40-40Z" fill="#2a1d3e" stroke="#eee6f5" stroke-width="4"/>
+  <path d="M205 78v204M555 78v204" stroke="#d5aa55" stroke-width="4" stroke-dasharray="10 10"/>
+  <rect x="260" y="118" width="240" height="124" rx="18" fill="#171124" stroke="#d5aa55" stroke-width="5"/>
+  <rect x="293" y="146" width="108" height="32" rx="8" fill="#eee6f5" opacity=".94"/>
+  <circle cx="440" cy="194" r="21" fill="#d5aa55"/>
+  <path d="M322 242v34M439 242v34" stroke="#eee6f5" stroke-width="6" stroke-linecap="round"/>
+</svg>

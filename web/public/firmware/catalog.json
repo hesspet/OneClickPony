@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "product": "OneKlickPony",
+  "releases": [
+    {
+      "productName": "OneKlickPony Produktivfirmware",
+      "version": "0.5.0",
+      "releasedAt": "19.09.2026",
+      "targetChip": "ESP32-C3",
+      "status": "stable",
+      "manifest": "releases/0.5.0/manifest.json",
+      "releaseNotes": {
+        "de": "Produktivfreigabe mit Funktionsmodi, Fehlernummern und erweiterter Wiederverbindungsdiagnose.",
+        "en": "Production release with function modes, error codes, and extended reconnection diagnostics."
+      }
+    }
+  ]
+}

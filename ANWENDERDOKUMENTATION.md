@@ -274,3 +274,15 @@ Private BLE-Adressen können wechseln. Eine Wiederverbindung ist nur möglich, w
 - **Realer Auslöser:** Pairing unter 0.2.7 erfolgreich; Nachweis einer erfolgreichen Wiederverbindung mit 0.5.0 steht noch aus.
 - **Diagnosefirmware:** Erfolgreich gebaut, aber nicht geflasht.
 - **Hardwareseitig noch NICHT mit 0.5.0 getestet:** erfolgreiche Wiederverbindung nach Koppeln und Neustart, neue Endpunkt-Diagnose, invertierte OLED-Anzeige und großes `ON`, Fehleranzeige `ERROR:####`, GPIO8-Pegel beziehungsweise Board-LED, Boot-Flash-Screen mit dem aktiven Modus, serial-basierte Modusumschaltung samt Haltezeit-Persistenz, BOOT-Gesten und RPA-Auflösung.
+
+## 15. Webanwendung verwenden
+
+Die öffentliche Webanwendung wird über GitHub Pages mit HTTPS bereitgestellt. Öffnen Sie die Seite in einem aktuellen Browser, der Web Serial unterstützt. Auf iPhone und iPad wird Web Serial nicht vorausgesetzt.
+
+1. Schließen Sie OneKlickPony mit einem datenfähigen USB-Kabel direkt an.
+2. Öffnen Sie **Flashen**, schließen Sie eventuell noch offene serielle Monitore und wählen Sie **Gerät auswählen**.
+3. Die Anwendung prüft, ob ein ESP32-C3 erkannt wird. Erst dann kann die freigegebene Produktivfirmware geschrieben werden.
+4. Nach Abschluss verbinden Sie das Gerät erneut und wählen **Firmwareversion prüfen**.
+5. Öffnen Sie **Konfigurieren**, um Status, Umschalt- oder Impulsmodus und Pairing zu verwalten. Das Löschen von Zuordnung und Bonds verlangt zwei bewusste Bestätigungen.
+
+Die Anleitungen sind deutlich als Beispiele gekennzeichnet; sie sind keine geprüften Verdrahtungsanleitungen. Die YouTube-Seite stellt erst nach **Video laden** eine Verbindung zu YouTube her.
