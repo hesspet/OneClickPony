@@ -7,34 +7,8 @@ namespace pony {
 
 constexpr size_t maxReportSize = 20;
 
-enum class OutputMode : uint8_t { Toggle, Pulse };
 enum class ReportKind : uint8_t { Unknown, Press, Release, Repeat };
 enum class ButtonGesture : uint8_t { None, Short, Pair, Clear };
-
-struct OutputConfig {
-    OutputMode mode;
-    uint32_t pulseDurationMillis;
-};
-
-class OutputController {
-  public:
-    explicit OutputController(OutputConfig config);
-
-    void onConnected();
-    void onDisconnected();
-    void onReport(ReportKind kind, uint32_t now);
-    bool tick(uint32_t now);
-
-    bool isActive() const { return active_; }
-    bool isArmed() const { return armed_; }
-
-  private:
-    OutputConfig config_;
-    uint32_t pulseStartedAt_ = 0;
-    bool connected_ = false;
-    bool active_ = false;
-    bool armed_ = false;
-};
 
 enum class LearnStage : uint8_t {
     FirstPress,

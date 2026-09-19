@@ -4,46 +4,6 @@
 
 namespace pony {
 
-OutputController::OutputController(OutputConfig config) : config_(config) {}
-
-void OutputController::onConnected() {
-    connected_ = true;
-    active_ = false;
-    armed_ = false;
-}
-
-void OutputController::onDisconnected() {
-    connected_ = false;
-    active_ = false;
-    armed_ = false;
-}
-
-void OutputController::onReport(ReportKind kind, uint32_t now) {
-    if (!connected_) return;
-    if (kind == ReportKind::Release) {
-        armed_ = true;
-        return;
-    }
-    if (kind != ReportKind::Press || !armed_) return;
-
-    armed_ = false;
-    if (config_.mode == OutputMode::Toggle) {
-        active_ = !active_;
-    } else if (!active_) {
-        active_ = true;
-        pulseStartedAt_ = now;
-    }
-}
-
-bool OutputController::tick(uint32_t now) {
-    if (active_ && config_.mode == OutputMode::Pulse &&
-        static_cast<uint32_t>(now - pulseStartedAt_) >= config_.pulseDurationMillis) {
-        active_ = false;
-        return true;
-    }
-    return false;
-}
-
 void ReportLearner::reset() {
     stage_ = LearnStage::FirstPress;
     endpoint_ = 0;

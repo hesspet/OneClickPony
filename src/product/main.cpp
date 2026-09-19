@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "ErrorCodes.h"
+#include "ModeDevice.h"
 #include "ProductConfig.h"
 
 namespace {
@@ -25,6 +26,10 @@ constexpr size_t maxReportReferenceSize = 8;
 constexpr size_t maxEndpoints = 8;
 constexpr size_t eventQueueLength = 12;
 constexpr uint32_t buttonDebounceMillis = 30;
+constexpr const char* configNamespace = "pony-cfg";
+constexpr const char* outputModeKey = "mode";
+constexpr const char* modeParamKey = "mode-param";
+constexpr uint32_t bootModeFlashMillis = 2000;
 
 enum class AppState : uint8_t {
     Unbound,
@@ -85,7 +90,7 @@ struct Endpoint {
 static_assert(sizeof(BindingRecord) < 256, "BindingRecord must stay small");
 
 U8G2_SSD1306_72X40_ER_F_HW_I2C display(U8G2_R0, U8X8_PIN_NONE, displaySclPin, displaySdaPin);
-pony::OutputController output({outputMode, pulseDurationMillis});
+pony::OutputController output({product_config::outputMode, product_config::pulseDurationMillis});
 pony::ReportLearner learner;
 Preferences preferences;
 QueueHandle_t eventQueue = nullptr;
@@ -116,6 +121,8 @@ bool reconnectPending = false;
 volatile bool callbackOverflow = false;
 volatile bool bondStoreRejected = false;
 volatile bool clientDisconnectPending = false;
+bool bootFlashActive = false;
+uint32_t bootFlashUntil = 0;
 
 bool elapsed(uint32_t now, uint32_t since, uint32_t duration) {
     return static_cast<uint32_t>(now - since) >= duration;
@@ -225,9 +232,26 @@ NimBLEAddress bindingAddress() {
     return NimBLEAddress(nativeAddress);
 }
 
+const char* modeStatusName(const pony::ModeConfig& config) {
+    static char buffer[24];
+    if (config.mode == pony::FuncMode::LedPulse) snprintf(buffer, sizeof(buffer), "Impuls %u", config.param0);
+    else snprintf(buffer, sizeof(buffer), "%s", pony::funcModeDisplayName(config.mode));
+    return buffer;
+}
+
 void renderScreen() {
     if (!displayReady) return;
     display.clearBuffer();
+    if (bootFlashActive) {
+        display.setFont(u8g2_font_5x7_tf);
+        display.setFontMode(1);
+        const char* flashTitle = "Modus";
+        display.drawStr((72 - display.getStrWidth(flashTitle)) / 2, 15, flashTitle);
+        const char* flashMode = modeStatusName(output.config());
+        display.drawStr((72 - display.getStrWidth(flashMode)) / 2, 29, flashMode);
+        display.sendBuffer();
+        return;
+    }
     if (output.isActive() && state == AppState::Ready) {
         display.setFont(u8g2_font_10x20_tf);
         const char* onText = "ON";
@@ -288,6 +312,72 @@ void applyOutput() {
 void forceInactive() {
     output.onDisconnected();
     applyOutput();
+}
+
+bool loadPersistedOutputMode(pony::ModeConfig& config) {
+    Preferences modePreferences;
+    if (!modePreferences.begin(configNamespace, true)) return false;
+    const uint8_t raw = modePreferences.getUChar(outputModeKey, 0xFF);
+    uint32_t param = modePreferences.getUInt(modeParamKey, product_config::pulseDurationMillis);
+    modePreferences.end();
+    if (raw == static_cast<uint8_t>(pony::FuncMode::LedToggle)) {
+        config = pony::ModeConfig{pony::FuncMode::LedToggle, product_config::pulseDurationMillis};
+        return true;
+    }
+    if (raw == static_cast<uint8_t>(pony::FuncMode::LedPulse)) {
+        if (param < pony::pulseMinMillis || param > pony::pulseMaxMillis) {
+            param = product_config::pulseDurationMillis;
+        }
+        config = pony::ModeConfig{pony::FuncMode::LedPulse, param};
+        return true;
+    }
+    return false;
+}
+
+bool savePersistedOutputMode(const pony::ModeConfig& config) {
+    Preferences modePreferences;
+    if (!modePreferences.begin(configNamespace, false)) return false;
+    const size_t written = modePreferences.putUChar(outputModeKey, static_cast<uint8_t>(config.mode));
+    bool paramOk = true;
+    if (config.mode == pony::FuncMode::LedPulse) {
+        paramOk = modePreferences.putUInt(modeParamKey, config.param0) == sizeof(uint32_t);
+    } else {
+        paramOk = modePreferences.remove(modeParamKey);
+    }
+    modePreferences.end();
+    return written == 1 && paramOk;
+}
+
+void showBootModeFlash() {
+    bootFlashActive = true;
+    bootFlashUntil = millis() + bootModeFlashMillis;
+    if (displayReady) renderScreen();
+}
+
+void handleBootModeFlash(uint32_t now) {
+    if (!bootFlashActive || !due(now, bootFlashUntil)) return;
+    bootFlashActive = false;
+    renderScreen();
+}
+
+void setOutputMode(const pony::ModeConfig& config) {
+    if (config.mode == pony::FuncMode::Servo) {
+        show("not implemented");
+        showTransient("not implemented", millis());
+        Serial.println("Modus 'Servo' ist nicht implementiert.");
+        return;
+    }
+    if (output.config().mode == config.mode && output.config().param0 == config.param0) {
+        Serial.printf("Ausgangsmodus ist bereits %s.\n", modeStatusName(config));
+        return;
+    }
+    output.setConfig(config);
+    applyOutput();
+    if (savePersistedOutputMode(config)) {
+        Serial.printf("Ausgangsmodus: %s (gespeichert).\n", modeStatusName(config));
+    } else {
+        Serial.printf("Ausgangsmodus: %s. Warnung: Speichern fehlgeschlagen.\n", modeStatusName(config));
+    }
 }
 
 void enqueue(const Event& event) {
@@ -1151,17 +1241,18 @@ const char* stateName() {
 }
 
 void printHelp() {
-    Serial.println("Befehle: help, status, pair, confirm, cancel, clear");
+    Serial.println("Befehle: help, status, mode [ledtoggle|ledpulse[,ms]|servo], pair, confirm, cancel, clear");
 }
 
 void printStatus() {
     const bool runtimeReady = runtimeStatus == RuntimeStatus::Ready;
     const bool linkConnected = client != nullptr && client->isConnected();
-    Serial.printf("Firmware %s, Runtime=%s, Zustand=%s, Zuordnung=%s, Ausgang=%s\n",
+    Serial.printf("Firmware %s, Runtime=%s, Zustand=%s, Zuordnung=%s, Modus=%s, Ausgang=%s\n",
                   firmwareVersion,
                   runtimeReady ? "bereit" : runtimeStatus == RuntimeStatus::Fatal ? "fatal" : "Start",
                   stateName(),
                   bindingLoaded ? "ja" : "nein",
+                  modeStatusName(output.config()),
                   output.isActive() ? "aktiv" : "inaktiv");
     Serial.printf("Bond lokal: %s\n",
                   runtimeReady && bindingLoaded && NimBLEDevice::isBonded(bindingAddress()) ? "ja" : "nein");
@@ -1192,6 +1283,28 @@ void processCommand(String command) {
     else if (command == "confirm") confirmPairing();
     else if (command == "cancel") cancelPairing();
     else if (command == "clear") clearBinding();
+    else if (command == "mode") {
+        Serial.printf("Ausgangsmodus: %s\n", modeStatusName(output.config()));
+    } else if (command.startsWith("mode ")) {
+        String argument = command.substring(5);
+        argument.trim();
+        int commaIndex = argument.indexOf(',');
+        String namePart = (commaIndex >= 0) ? argument.substring(0, commaIndex) : argument;
+        String paramPart = (commaIndex >= 0) ? argument.substring(commaIndex + 1) : "";
+        namePart.trim();
+        paramPart.trim();
+        pony::FuncMode mode;
+        if (!pony::parseFuncMode(namePart.c_str(), mode)) {
+            Serial.println("Unbekannter Modus. Erlaubt: 'mode ledtoggle', 'mode ledpulse[,ms]' oder 'mode servo'.");
+        } else {
+            uint32_t param = output.config().param0;
+            if (!pony::parseModeParam(mode, paramPart.c_str(), param)) {
+                Serial.println("Ungültige Modus-Parameter. Erlaubt ist z.B. 'mode ledpulse,750' (Haltezeit 1-60000 ms).");
+            } else {
+                setOutputMode(pony::ModeConfig{mode, param});
+            }
+        }
+    }
     else if (command.length() != 0) Serial.println("Unbekannter Befehl. 'help' zeigt die Befehle.");
 }
 
@@ -1255,10 +1368,19 @@ void setup() {
         return;
     }
 
+    pony::ModeConfig startupConfig{product_config::outputMode, product_config::pulseDurationMillis};
+    if (loadPersistedOutputMode(startupConfig)) {
+        output.setConfig(startupConfig);
+        Serial.printf("Ausgangsmodus geladen: %s\n", modeStatusName(startupConfig));
+    } else {
+        Serial.println("Kein gespeicherter Ausgangsmodus; verwende Standardeinstellung.");
+    }
+
     Wire.begin(displaySdaPin, displaySclPin);
     display.begin();
     displayReady = true;
     show("Koppeln");
+    showBootModeFlash();
 
     eventQueue = xQueueCreate(eventQueueLength, sizeof(Event));
     if (eventQueue == nullptr) {
@@ -1317,6 +1439,7 @@ void setup() {
 
 void loop() {
     const uint32_t now = millis();
+    handleBootModeFlash(now);
     readSerialCommands();
     handleButton(now);
 

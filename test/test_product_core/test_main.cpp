@@ -2,19 +2,19 @@
 
 #include <stdint.h>
 
-#include "ProductCore.h"
+#include "ModeDevice.h"
 
 using pony::LearnResult;
 using pony::LearnStage;
 using pony::ButtonGesture;
-using pony::OutputConfig;
+using pony::FuncMode;
+using pony::ModeConfig;
 using pony::OutputController;
-using pony::OutputMode;
 using pony::ReportKind;
 using pony::ReportLearner;
 
 void test_toggle_press_repeat_release() {
-    OutputController output(OutputConfig{OutputMode::Toggle, 250});
+    OutputController output(ModeConfig{FuncMode::LedToggle, 250});
     output.onConnected();
     TEST_ASSERT_FALSE(output.isActive());
     TEST_ASSERT_FALSE(output.isArmed());
@@ -33,7 +33,7 @@ void test_toggle_press_repeat_release() {
 }
 
 void test_pulse_duration_and_press_while_active() {
-    OutputController output(OutputConfig{OutputMode::Pulse, 250});
+    OutputController output(ModeConfig{FuncMode::LedPulse, 250});
     output.onConnected();
     output.onReport(ReportKind::Release, 900);
     output.onReport(ReportKind::Press, 1000);
@@ -49,7 +49,7 @@ void test_pulse_duration_and_press_while_active() {
 }
 
 void test_disconnect_is_safe_and_requires_release() {
-    OutputController output(OutputConfig{OutputMode::Toggle, 250});
+    OutputController output(ModeConfig{FuncMode::LedToggle, 250});
     output.onConnected();
     output.onReport(ReportKind::Release, 1);
     output.onReport(ReportKind::Press, 2);
@@ -68,7 +68,7 @@ void test_disconnect_is_safe_and_requires_release() {
 }
 
 void test_unknown_report_does_nothing() {
-    OutputController output(OutputConfig{OutputMode::Toggle, 250});
+    OutputController output(ModeConfig{FuncMode::LedToggle, 250});
     output.onConnected();
     output.onReport(ReportKind::Release, 1);
     output.onReport(ReportKind::Unknown, 2);
@@ -77,7 +77,7 @@ void test_unknown_report_does_nothing() {
 }
 
 void test_pulse_millis_wraparound() {
-    OutputController output(OutputConfig{OutputMode::Pulse, 250});
+    OutputController output(ModeConfig{FuncMode::LedPulse, 250});
     output.onConnected();
     output.onReport(ReportKind::Release, UINT32_MAX - 200);
     output.onReport(ReportKind::Press, UINT32_MAX - 100);
@@ -88,7 +88,7 @@ void test_pulse_millis_wraparound() {
 }
 
 void test_pulse_tick_reports_deactivation_once() {
-    OutputController output(OutputConfig{OutputMode::Pulse, 250});
+    OutputController output(ModeConfig{FuncMode::LedPulse, 250});
     output.onConnected();
     output.onReport(ReportKind::Release, 1);
     output.onReport(ReportKind::Press, 10);
@@ -159,6 +159,76 @@ void test_button_hold_boundaries() {
     TEST_ASSERT_EQUAL(ButtonGesture::Clear, pony::classifyButtonHold(10000, 3000, 9000, 10000));
 }
 
+void test_set_config_switches_and_resets_active() {
+    OutputController output(ModeConfig{FuncMode::LedToggle, 250});
+    output.onConnected();
+    TEST_ASSERT_EQUAL(FuncMode::LedToggle, output.mode());
+    output.onReport(ReportKind::Release, 1);
+    output.onReport(ReportKind::Press, 2);
+    TEST_ASSERT_TRUE(output.isActive());
+    output.setConfig(ModeConfig{FuncMode::LedPulse, 250});
+    TEST_ASSERT_EQUAL(FuncMode::LedPulse, output.mode());
+    TEST_ASSERT_FALSE(output.isActive());
+    output.onReport(ReportKind::Release, 3);
+    output.onReport(ReportKind::Press, 4);
+    TEST_ASSERT_TRUE(output.isActive());
+    output.tick(254);
+    TEST_ASSERT_FALSE(output.isActive());
+}
+
+void test_set_config_keeps_armed() {
+    OutputController output(ModeConfig{FuncMode::LedPulse, 250});
+    output.onConnected();
+    output.onReport(ReportKind::Release, 1);
+    TEST_ASSERT_TRUE(output.isArmed());
+    output.setConfig(ModeConfig{FuncMode::LedToggle, 250});
+    TEST_ASSERT_TRUE(output.isArmed());
+    output.onReport(ReportKind::Press, 2);
+    TEST_ASSERT_TRUE(output.isActive());
+}
+
+void test_parse_mode_tokens() {
+    pony::FuncMode mode{};
+    TEST_ASSERT_TRUE(pony::parseFuncMode("ledtoggle", mode));
+    TEST_ASSERT_EQUAL(pony::FuncMode::LedToggle, mode);
+    TEST_ASSERT_TRUE(pony::parseFuncMode("toggle", mode));
+    TEST_ASSERT_EQUAL(pony::FuncMode::LedToggle, mode);
+    TEST_ASSERT_TRUE(pony::parseFuncMode("LedPulse", mode));
+    TEST_ASSERT_EQUAL(pony::FuncMode::LedPulse, mode);
+    TEST_ASSERT_TRUE(pony::parseFuncMode("pulse", mode));
+    TEST_ASSERT_EQUAL(pony::FuncMode::LedPulse, mode);
+    TEST_ASSERT_TRUE(pony::parseFuncMode("servo", mode));
+    TEST_ASSERT_EQUAL(pony::FuncMode::Servo, mode);
+    TEST_ASSERT_FALSE(pony::parseFuncMode("led", mode));
+    TEST_ASSERT_FALSE(pony::parseFuncMode("", mode));
+}
+
+void test_parse_ledpulse_param() {
+    uint32_t param = 1000;
+    TEST_ASSERT_TRUE(pony::parseModeParam(pony::FuncMode::LedPulse, "750", param));
+    TEST_ASSERT_EQUAL_UINT32(750, param);
+    TEST_ASSERT_TRUE(pony::parseModeParam(pony::FuncMode::LedPulse, "", param));
+    TEST_ASSERT_EQUAL_UINT32(750, param);
+    TEST_ASSERT_TRUE(pony::parseModeParam(pony::FuncMode::LedPulse, ",500", param));
+    TEST_ASSERT_EQUAL_UINT32(500, param);
+    TEST_ASSERT_FALSE(pony::parseModeParam(pony::FuncMode::LedPulse, "abc", param));
+    TEST_ASSERT_FALSE(pony::parseModeParam(pony::FuncMode::LedPulse, "0", param));
+    TEST_ASSERT_FALSE(pony::parseModeParam(pony::FuncMode::LedPulse, "60001", param));
+    TEST_ASSERT_FALSE(pony::parseModeParam(pony::FuncMode::LedToggle, "500", param));
+    TEST_ASSERT_TRUE(pony::parseModeParam(pony::FuncMode::LedToggle, "", param));
+}
+
+void test_servo_dummy_never_activates() {
+    OutputController output(ModeConfig{FuncMode::Servo, 0});
+    output.onConnected();
+    output.onReport(ReportKind::Release, 1);
+    TEST_ASSERT_TRUE(output.isArmed());
+    output.onReport(ReportKind::Press, 2);
+    TEST_ASSERT_FALSE(output.isActive());
+    TEST_ASSERT_FALSE(output.isArmed());
+    TEST_ASSERT_FALSE(output.tick(1000));
+}
+
 void setUp() {}
 void tearDown() {}
 
@@ -176,5 +246,10 @@ int main(int, char**) {
     RUN_TEST(test_learning_cancel_blocks_confirmation);
     RUN_TEST(test_output_polarities);
     RUN_TEST(test_button_hold_boundaries);
+    RUN_TEST(test_set_config_switches_and_resets_active);
+    RUN_TEST(test_set_config_keeps_armed);
+    RUN_TEST(test_parse_mode_tokens);
+    RUN_TEST(test_parse_ledpulse_param);
+    RUN_TEST(test_servo_dummy_never_activates);
     return UNITY_END();
 }

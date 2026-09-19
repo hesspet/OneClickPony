@@ -1,6 +1,6 @@
 # Anwenderdokumentation OneKlickPony
 
-Diese Anleitung beschreibt OneKlickPony 0.3.0 ohne Programmierkenntnisse. Unter 0.2.7 war das Koppeln eines realen Auslösers erfolgreich, die anschließende Wiederverbindung scheiterte jedoch mit `Gespeicherter GATT-/HID-Endpunkt nicht eindeutig gefunden`. Version 0.2.8 behebt die Endpunktprüfung und protokolliert bei Bedarf den kompletten GATT-Aufbau zur Ursachenanalyse.
+Diese Anleitung beschreibt OneKlickPony 0.5.0 ohne Programmierkenntnisse. Unter 0.2.7 war das Koppeln eines realen Auslösers erfolgreich, die anschließende Wiederverbindung scheiterte jedoch mit `Gespeicherter GATT-/HID-Endpunkt nicht eindeutig gefunden`. Version 0.2.8 behebt die Endpunktprüfung und protokolliert bei Bedarf den kompletten GATT-Aufbau zur Ursachenanalyse. Seit 0.5.0 bilden die Arbeitsmodi einzelne Funktionen ab (Toggle, Impuls und ein Servo-Platzhalter); sie lassen sich per seriellem Befehl umschalten, werden dauerhaft gespeichert und beim Start kurz auf dem Display angezeigt.
 
 ## 1. Was das Gerät macht
 
@@ -8,7 +8,7 @@ Ein ESP32-C3 verbindet sich per Bluetooth Low Energy (BLE) mit genau einem zuvor
 
 Es gibt zwei getrennte Firmwares:
 
-- **Produktivfirmware:** für den normalen Betrieb, PlatformIO-Umgebung `product-c3`, Version 0.3.0.
+- **Produktivfirmware:** für den normalen Betrieb, PlatformIO-Umgebung `product-c3`, Version 0.5.0.
 - **Diagnosefirmware:** zum Untersuchen problematischer oder unbekannter Auslöser, Umgebung `diagnose-c3`; ihr serielles Firmware-Banner steht noch auf 0.1.0.
 
 ## 2. Benötigte Teile
@@ -69,11 +69,17 @@ Wenn mehrere mögliche Geräte sichtbar sind, ein Report abweicht, die Verbindun
 
 ## 6. Bedienung im Alltag
 
-Im Standardmodus **Toggle** gilt:
+Der Ausgang hat frei wählbare Arbeitsmodi, die mit dem seriellen Monitor ohne Neukompilieren umgeschaltet werden können (siehe Abschnitt 10). Jeder Modus bildet eine Funktion ab und ist in der Firmware als eigene Device-Klasse hinterlegt; so lassen sich später weitere Funktionen ergänzen. Die zuletzt gewählte Einstellung wird dauerhaft gespeichert und beim Einschalten für etwa zwei Sekunden als Flash-Screen auf dem Display angezeigt (`Modus` mit `Toggle` beziehungsweise `Impuls` inklusive Haltezeit, z. B. `Impuls 750`).
+
+Im Modus **Toggle** (`LedToggle`) gilt:
 
 1. Erster vollständiger Tastendruck: GPIO8/Board-LED wird aktiv.
 2. Zweiter vollständiger Tastendruck: GPIO8/Board-LED wird inaktiv.
 3. Wiederholungsreports eines gehaltenen Knopfs lösen kein mehrfaches Umschalten aus.
+
+Im Modus **Impuls** (`LedPulse`) aktiviert ein vollständiger Tastendruck den Ausgang für eine einstellbare Haltezeit (Standardwert 1000 ms, per Parameter 1–60000 ms änderbar, siehe Abschnitt 10); danach wird er automatisch inaktiv. Weitere Tastendrücke während eines laufenden Impulses werden ignoriert. Beim Umschalten des Modus wird ein eventuell aktiver Ausgang sofort inaktiv.
+
+Zusätzlich ist der Modus **Servo** als Platzhalter für eine spätere Servo-Anbindung vorgesehen. Wird er gewählt, zeigt das Display `not implemented`; der aktive Modus bleibt unverändert, und es wird nichts gespeichert.
 
 Nach dem Start und nach jeder Wiederverbindung bleibt der Ausgang zunächst inaktiv. Die Firmware wartet zuerst auf ein Loslassen des gelernten Knopfs. Dadurch löst ein beim Verbindungsaufbau bereits gedrückter Knopf keine Aktion aus.
 
@@ -81,7 +87,7 @@ Bei Verbindungsverlust wird der Ausgang sofort inaktiv. Das Gerät sucht anschli
 
 ### Zustandsanzeige auf dem OLED
 
-Ohne Verbindung zeigt das Display Zustandstexte wie `Koppeln`, `Suche`, `Verbinde`, `Knopf druecken`, `Noch einmal`, `BOOT` oder `Abbruch`. Bei aufgebauter Verbindung wird die Anzeige invertiert dargestellt (heller Hintergrund, dunkler Text) und zeigt `Bereit`. Ist der Ausgang aktiv, füllt ein großes `ON` den gesamten Bildschirm. Bei einem Fehler erscheint `ERROR:####` mit einer festen Fehlernummer; den zugehörigen Fehlertext und eine Empfehlung liefert Abschnitt 13.
+Ohne Verbindung zeigt das Display Zustandstexte wie `Koppeln`, `Suche`, `Verbinde`, `Knopf druecken`, `Noch einmal`, `BOOT` oder `Abbruch`. Beim Einschalten erscheint zunächst als Flash-Screen für etwa zwei Sekunden `Modus` mit `Toggle` beziehungsweise `Impuls` (bei Impuls inkl. Haltezeit); danach der reguläre Zustand. Bei aufgebauter Verbindung wird die Anzeige invertiert dargestellt (heller Hintergrund, dunkler Text) und zeigt `Bereit`. Ist der Ausgang aktiv, füllt ein großes `ON` den gesamten Bildschirm. Bei einem Fehler erscheint `ERROR:####` mit einer festen Fehlernummer; den zugehörigen Fehlertext und eine Empfehlung liefert Abschnitt 13.
 
 ## 7. BOOT-Taster verwenden
 
@@ -114,17 +120,23 @@ Die bestehende bestätigte Zuordnung bleibt bis zur erfolgreichen Bestätigung e
 
 Alternativ kann im seriellen Monitor `clear` eingegeben werden.
 
-## 10. Optional: Impuls und Polarität einstellen
+## 10. Optional: Modus, Impulsdauer und Polarität einstellen
 
-Diese Einstellungen können nicht am Gerät geändert werden. Sie stehen in `include\ProductConfig.h` und erfordern erneutes Kompilieren und Flashen.
+Der Arbeitsmodus lässt sich seit Version 0.5.0 ohne Neukompilieren im seriellen Monitor umschalten und mit festen Parameterpositionen versehen:
 
-- `outputMode = pony::OutputMode::Toggle`: jeder neue Tastendruck schaltet um.
-- `outputMode = pony::OutputMode::Pulse`: der Ausgang wird nur für eine feste Zeit aktiv.
-- `pulseDurationMillis = 250`: Impulsdauer in Millisekunden.
+- `mode` zeigt den aktuellen Modus an (bei Impuls inkl. Haltezeit, z. B. `Impuls 750`).
+- `mode ledtoggle` (Kurzform `mode toggle`) stellt auf Toggle um und speichert die Einstellung dauerhaft.
+- `mode ledpulse[,Haltezeit]` (Kurzform `mode pulse[,Haltezeit]`) stellt auf Impuls um. Die Haltezeit ist die feste erste Parameterposition in Millisekunden (1–60000), zum Beispiel `mode ledpulse,750`. Ohne Parameter gilt die zuletzt eingestellte beziehungsweise die Standard-Haltezeit. Die Einstellung wird dauerhaft gespeichert.
+- `mode servo` ist der Platzhalter für die geplante Servo-Erweiterung: Das Display zeigt `not implemented` und der Modus wird weder geändert noch gespeichert.
+
+Die letzte Einstellung übersteht Neustarts und Stromunterbrechungen; beim Einschalten zeigt das Display den aktiven Modus kurz an. Weitere Tastendrücke während eines laufenden Impulses werden ignoriert. Sie starten oder verlängern den Impuls nicht.
+
+Nicht über die serielle Schnittstelle änderbar und nur in `include\ProductConfig.h` per Neukompilieren und Flashen einstellbar sind:
+
+- `outputMode = pony::FuncMode::LedPulse`: nur als Standardwert, wenn noch keine gespeicherte Einstellung vorliegt. Alternativ `pony::FuncMode::LedToggle` oder der Servo-Platzhalter `pony::FuncMode::Servo`. Die alten Namen `pony::OutputMode::Toggle` und `pony::OutputMode::Pulse` heißen jetzt `pony::FuncMode::LedToggle` beziehungsweise `pony::FuncMode::LedPulse`.
+- `pulseDurationMillis = 1000`: Standard-Haltezeit (Parameterposition 1) des Impulses in Millisekunden.
 - `outputActiveLow = true`: aktiv LOW und inaktiv HIGH.
 - `outputActiveLow = false`: aktiv HIGH und inaktiv LOW.
-
-Weitere Tastendrücke während eines laufenden Impulses werden ignoriert. Sie starten oder verlängern den Impuls nicht.
 
 ## 11. Serielle Hilfe der Produktivfirmware
 
@@ -133,7 +145,11 @@ Weitere Tastendrücke während eines laufenden Impulses werden ignoriert. Sie st
 | Befehl | Bedeutung |
 | --- | --- |
 | `help` | Alle Produktbefehle anzeigen |
-| `status` | Zustand, Zuordnung, lokalen Bond, Linkstatus, Peer-ID und Ausgang prüfen |
+| `status` | Zustand, Zuordnung, Modus, lokalen Bond, Linkstatus, Peer-ID und Ausgang prüfen |
+| `mode` | Aktuellen Arbeitsmodus anzeigen (bei Impuls inkl. Haltezeit, z. B. `Impuls 750`) |
+| `mode ledtoggle` | Arbeitsmodus auf Toggle umstellen und dauerhaft speichern (Kurzform `mode toggle`) |
+| `mode ledpulse[,ms]` | Arbeitsmodus auf Impuls umstellen, optional mit Haltezeit (1–60000 ms), und dauerhaft speichern (Kurzform `mode pulse[,ms]`) |
+| `mode servo` | Servo-Platzhalter: zeigt `not implemented` und ändert den Modus nicht |
 | `pair` | Pairing starten |
 | `confirm` | Gelerntes Profil bestätigen |
 | `cancel` | Pairing abbrechen |
@@ -252,9 +268,9 @@ Private BLE-Adressen können wechseln. Eine Wiederverbindung ist nur möglich, w
 
 ## 14. Aktueller Prüfstand
 
-- **Kompiliert:** Produktivfirmware 0.3.0 und Diagnosefirmware wurden mit PlatformIO erfolgreich kompiliert.
-- **Softwareseitig geprüft:** Alle 12 nativen Tests für Toggle, Impuls, Polarität, Disconnect-Sicherheit, BOOT-Grenzwerte und den zweistufigen Lernablauf sind erfolgreich.
+- **Kompiliert:** Produktivfirmware 0.5.0 und Diagnosefirmware wurden mit PlatformIO erfolgreich kompiliert.
+- **Softwareseitig geprüft:** Alle 17 nativen Tests für Toggle, Impuls, Polarität, Disconnect-Sicherheit, BOOT-Grenzwerte, Laufzeit-Modusumschaltung, Modus- und Parameter-Parsing, die Servo-Platzhaltersperre (`not implemented`) und den zweistufigen Lernablauf sind erfolgreich.
 - **Auf COM9 bestätigt:** Produktivfirmware 0.2.7 wurde real geflasht; dort gelang das Koppeln eines realen Auslösers, die direkte Wiederverbindung scheiterte jedoch mit `Gespeicherter GATT-/HID-Endpunkt nicht eindeutig gefunden`.
-- **Realer Auslöser:** Pairing unter 0.2.7 erfolgreich; Nachweis einer erfolgreichen Wiederverbindung mit 0.3.0 steht noch aus.
+- **Realer Auslöser:** Pairing unter 0.2.7 erfolgreich; Nachweis einer erfolgreichen Wiederverbindung mit 0.5.0 steht noch aus.
 - **Diagnosefirmware:** Erfolgreich gebaut, aber nicht geflasht.
-- **Hardwareseitig noch NICHT mit 0.3.0 getestet:** erfolgreiche Wiederverbindung nach Koppeln und Neustart, neue Endpunkt-Diagnose, invertierte OLED-Anzeige und großes `ON`, Fehleranzeige `ERROR:####`, GPIO8-Pegel beziehungsweise Board-LED, BOOT-Gesten und RPA-Auflösung.
+- **Hardwareseitig noch NICHT mit 0.5.0 getestet:** erfolgreiche Wiederverbindung nach Koppeln und Neustart, neue Endpunkt-Diagnose, invertierte OLED-Anzeige und großes `ON`, Fehleranzeige `ERROR:####`, GPIO8-Pegel beziehungsweise Board-LED, Boot-Flash-Screen mit dem aktiven Modus, serial-basierte Modusumschaltung samt Haltezeit-Persistenz, BOOT-Gesten und RPA-Auflösung.
