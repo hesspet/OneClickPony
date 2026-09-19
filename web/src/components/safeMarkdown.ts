@@ -11,15 +11,17 @@ const markdownRenderer = new MarkdownIt({
  * guide content cannot introduce scripts, event handlers, or arbitrary tags.
  */
 export function renderSafeMarkdown(markdown: string, imageUrls: Readonly<Record<string, string>>): string {
-  const markdownWithLocalImages = markdown.replace(
-    /\]\((guide-(?:connection|installation))\)/g,
-    (match, imageKey: string) => {
+  const rendered = markdownRenderer.render(markdown);
+  return rendered.replace(/(<img\b[^>]*?\bsrc=")(guide-(?:connection|installation))("[^>]*>)/g,
+    (match, prefix: string, imageKey: string, suffix: string) => {
       const imageUrl = imageUrls[imageKey];
-      return imageUrl ? `](${imageUrl})` : match;
-    },
-  );
+      if (imageUrl === undefined) return match;
+      return `${prefix}${escapeAttribute(imageUrl)}${suffix}`;
+    });
+}
 
-  return markdownRenderer.render(markdownWithLocalImages);
+function escapeAttribute(value: string): string {
+  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export function createTableOfContents(article: HTMLElement): HTMLUListElement | undefined {
